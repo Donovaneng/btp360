@@ -1,0 +1,6 @@
+node_modules/
+frontend_btp360/node_modules/
+backend_btp360/uploads/
+.env
+.vscode/
+*.log
