@@ -41,7 +41,12 @@ class UploadController extends Controller {
             mkdir($uploadDir, 0777, true);
         }
 
-        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $mimeMap = [
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/webp' => 'webp'
+        ];
+        $extension = $mimeMap[$file['type']] ?? 'jpg';
         $filename = uniqid('project_') . '_' . time() . '.' . $extension;
         $targetPath = $uploadDir . $filename;
 
@@ -88,7 +93,12 @@ class UploadController extends Controller {
         $uploadDir = __DIR__ . '/../../uploads/';
         if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
 
-        $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $mimeMap = [
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/webp' => 'webp'
+        ];
+        $extension = $mimeMap[$file['type']] ?? 'jpg';
         $filename = uniqid('article_') . '_' . time() . '.' . $extension;
         $targetPath = $uploadDir . $filename;
 

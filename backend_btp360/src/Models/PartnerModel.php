@@ -21,8 +21,8 @@ class PartnerModel {
                        s.level as subscription_level,
                        (SELECT COUNT(*) FROM projects p WHERE p.user_id = u.id) as projects_count,
                        (SELECT COUNT(*) FROM partner_exclusivities pe WHERE pe.user_id = u.id) as is_exclusive,
-                       (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.partner_id = u.id) as avg_rating,
-                       (SELECT COUNT(*) FROM reviews r WHERE r.partner_id = u.id) as reviews_count
+                       (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.partner_id = u.id AND r.status = 'approved') as avg_rating,
+                       (SELECT COUNT(*) FROM reviews r WHERE r.partner_id = u.id AND r.status = 'approved') as reviews_count
                 FROM users u
                 LEFT JOIN user_categories uc ON u.id = uc.user_id
                 LEFT JOIN categories c ON uc.category_id = c.id
@@ -50,8 +50,8 @@ class PartnerModel {
                        s.level as subscription_level,
                        (SELECT COUNT(*) FROM projects p WHERE p.user_id = u.id) as projects_count,
                        (SELECT COUNT(*) FROM partner_exclusivities pe WHERE pe.user_id = u.id) as is_exclusive,
-                       (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.partner_id = u.id) as avg_rating,
-                       (SELECT COUNT(*) FROM reviews r WHERE r.partner_id = u.id) as reviews_count
+                       (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.partner_id = u.id AND r.status = 'approved') as avg_rating,
+                       (SELECT COUNT(*) FROM reviews r WHERE r.partner_id = u.id AND r.status = 'approved') as reviews_count
                 FROM users u
                 JOIN user_categories uc ON u.id = uc.user_id
                 JOIN categories c ON uc.category_id = c.id
@@ -80,8 +80,8 @@ class PartnerModel {
                        c.name as category_name, c.slug as category_slug,
                        s.level as subscription_level,
                        (SELECT COUNT(*) FROM partner_exclusivities pe WHERE pe.user_id = u.id) as is_exclusive,
-                       (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.partner_id = u.id) as avg_rating,
-                       (SELECT COUNT(*) FROM reviews r WHERE r.partner_id = u.id) as reviews_count
+                       (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.partner_id = u.id AND r.status = 'approved') as avg_rating,
+                       (SELECT COUNT(*) FROM reviews r WHERE r.partner_id = u.id AND r.status = 'approved') as reviews_count
                 FROM users u
                 LEFT JOIN user_categories uc ON u.id = uc.user_id
                 LEFT JOIN categories c ON uc.category_id = c.id

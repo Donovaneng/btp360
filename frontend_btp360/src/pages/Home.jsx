@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Building2, Users, ShieldCheck, HardHat, TrendingUp, Camera, Loader2, BookOpen, Construction, BrickWall, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Loader360 from '../components/Loader360';
 import heroBg from '../assets/p1.jpg.jpeg';
 import { useSEO } from '../hooks/useSEO';
 
@@ -69,25 +70,25 @@ const Home = () => {
         </div>
         
         {/* Animated Shapes */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-brand-orange/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 bg-brand-yellow/10 rounded-full blur-3xl animate-pulse delay-700"></div>
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-brand-orange/20 rounded-full blur-3xl animate-float"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 bg-brand-yellow/15 rounded-full blur-3xl animate-float" style={{ animationDelay: '-2.5s' }}></div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="max-w-3xl">
-            <span className="inline-block px-4 py-1 rounded-full bg-brand-orange/10 border border-brand-orange/20 text-brand-orange font-bold text-sm mb-6 animate-fade-in">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-brand-orange/10 border border-brand-orange/20 text-brand-orange font-bold text-sm mb-6 animate-fade-in">
               LE RÉSEAU N°1 DU BTP AU CAMEROUN
             </span>
-            <h1 className="text-5xl md:text-7xl font-black text-white leading-tight mb-8">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-white leading-tight mb-8">
               Bâtissons votre futur à <span className="text-gradient-brand">360°</span>
             </h1>
             <p className="text-xl text-slate-300 mb-10 leading-relaxed font-light">
               BTP 360 centralise l'expertise locale pour des solutions de construction innovantes, sécurisées et professionnelles.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/services" className="bg-brand-orange hover:bg-brand-orange-dark text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all transform hover:scale-105 shadow-xl">
+              <Link to="/services" className="bg-gradient-brand hover:opacity-95 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all transform hover:scale-105 shadow-xl shadow-brand-orange/20">
                 Démarrer mon projet <ArrowRight size={20} />
               </Link>
-              <Link to="/register-partner" className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-8 py-4 rounded-xl font-bold transition-all flex items-center justify-center">
+              <Link to="/register-partner" className="bg-white/10 hover:bg-white/20 text-white border border-white/15 px-8 py-4 rounded-xl font-bold transition-all flex items-center justify-center backdrop-blur-sm hover:scale-105">
                 Devenir Partenaire
               </Link>
             </div>
@@ -97,11 +98,11 @@ const Home = () => {
 
       {/* Stats Section */}
       <section className="relative z-20 -mt-16 max-w-5xl mx-auto px-4 w-full">
-        <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="glass-card bg-white/95 rounded-[2.5rem] shadow-[0_20px_50px_rgba(249,115,22,0.08)] p-8 md:p-12 grid grid-cols-2 md:grid-cols-4 gap-8 border border-white/50 hover:shadow-[0_20px_50px_rgba(249,115,22,0.15)] transition-all duration-500">
           {stats.map((stat, idx) => (
-            <div key={idx} className="text-center">
-              <div className="text-4xl font-black text-brand-dark mb-1">{stat.value}</div>
-              <div className="text-sm font-bold text-brand-orange uppercase tracking-wider">{stat.label}</div>
+            <div key={idx} className="text-center group/item hover:scale-105 transition-transform duration-300">
+              <div className="text-4xl font-black text-brand-dark mb-1 bg-gradient-to-r from-brand-dark to-brand-orange bg-clip-text text-transparent group-hover/item:text-brand-orange transition-colors duration-300">{stat.value}</div>
+              <div className="text-[10px] font-black text-brand-gray uppercase tracking-widest group-hover/item:text-brand-dark transition-colors duration-300">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -121,9 +122,8 @@ const Home = () => {
 
            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
               {isLoading ? (
-                <div className="col-span-3 py-20 flex flex-col items-center justify-center text-slate-400">
-                   <Loader2 className="animate-spin mb-4" size={48} />
-                   <p className="font-bold uppercase tracking-widest text-xs">Chargement des inspirations...</p>
+                <div className="col-span-3 py-10 flex justify-center w-full">
+                   <Loader360 statusText="Chargement des inspirations..." />
                 </div>
               ) : latestProjects.length > 0 ? latestProjects.map((project) => (
                 <Link 
@@ -235,24 +235,33 @@ const Home = () => {
       </section>
 
       {/* Trust Section */}
-      <section className="py-24 bg-brand-dark text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center gap-16">
-          <div className="flex-1">
-            <h2 className="text-4xl font-black mb-8 leading-tight">Pourquoi choisir <span className="text-brand-orange">BTP 360</span> ?</h2>
+      <section className="py-24 bg-brand-dark text-white relative overflow-hidden">
+        {/* Subtle glowing backgrounds */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-brand-orange/5 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-brand-yellow/5 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center gap-16 relative z-10">
+          <div className="flex-1 w-full">
+            <h2 className="text-4xl md:text-5xl font-black mb-10 leading-tight">Pourquoi choisir <span className="text-brand-orange">BTP 360</span> ?</h2>
             <div className="space-y-6">
               {[
-                { title: 'Transparence Totale', icon: <ShieldCheck className="text-brand-orange" /> },
-                { title: 'Qualité Certifiée', icon: <ShieldCheck className="text-brand-orange" /> },
-                { title: 'Respect des Délais', icon: <TrendingUp className="text-brand-orange" /> },
+                { title: 'Transparence Totale', desc: 'Suivez vos demandes et devis étape par étape sans frais cachés.', icon: <ShieldCheck className="text-brand-orange" size={24} /> },
+                { title: 'Qualité Certifiée', desc: 'Chaque professionnel du réseau est rigoureusement validé par nos équipes.', icon: <ShieldCheck className="text-brand-orange" size={24} /> },
+                { title: 'Respect des Délais', desc: 'Des chantiers livrés à temps grâce à un suivi rigoureux des plannings.', icon: <TrendingUp className="text-brand-orange" size={24} /> },
               ].map((item, idx) => (
-                <div key={idx} className="flex items-center gap-4">
-                  <div className="shrink-0">{item.icon}</div>
-                  <span className="text-xl font-semibold">{item.title}</span>
+                <div key={idx} className="flex gap-5 bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/10 p-6 rounded-2xl transition-all duration-300 backdrop-blur-sm group">
+                  <div className="w-12 h-12 bg-brand-orange/10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300">
+                     {item.icon}
+                  </div>
+                  <div>
+                     <h4 className="text-lg font-bold text-white mb-1">{item.title}</h4>
+                     <p className="text-sm text-slate-400 font-medium leading-relaxed">{item.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="flex-1 w-full h-[500px] rounded-[3rem] border border-white/10 overflow-hidden shadow-2xl relative group">
+          <div className="flex-1 w-full h-[400px] md:h-[500px] rounded-[3rem] border border-white/10 overflow-hidden shadow-2xl relative group">
              <img 
                src="/btp_industrial_trust_1776989909658.png" 
                alt="Infrastructure Industrielle BTP 360" 

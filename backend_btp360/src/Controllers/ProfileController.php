@@ -31,8 +31,8 @@ class ProfileController extends Controller {
                    (SELECT COUNT(*) FROM projects p WHERE p.user_id = u.id) as projects_count,
                    (SELECT COUNT(*) FROM leads l
                     WHERE l.partner_id = u.id OR l.client_id = u.id) as leads_count,
-                   (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.partner_id = u.id) as avg_rating,
-                   (SELECT COUNT(*) FROM reviews r WHERE r.partner_id = u.id) as reviews_count
+                   (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.partner_id = u.id AND r.status = 'approved') as avg_rating,
+                   (SELECT COUNT(*) FROM reviews r WHERE r.partner_id = u.id AND r.status = 'approved') as reviews_count
             FROM users u
             LEFT JOIN user_categories uc ON uc.user_id = u.id
             LEFT JOIN categories c ON c.id = uc.category_id

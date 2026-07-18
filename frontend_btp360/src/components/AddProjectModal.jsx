@@ -20,12 +20,57 @@ const AddProjectModal = ({ isOpen, onClose, onProjectAdded }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const [dragActive, setDragActive] = useState(false);
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      handleFile(file);
+    }
+  };
+
+  const handleFile = (file) => {
+    // 1. Validation de type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Format non supporté. Veuillez utiliser JPG, PNG ou WEBP.");
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      return;
+    }
+
+    // 2. Validation de taille (5 Mo max)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError("L'image est trop volumineuse (max 5 Mo).");
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      return;
+    }
+
+    setError('');
+    setSelectedFile(file);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setSelectedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      handleFile(file);
     }
   };
 
@@ -146,7 +191,17 @@ const AddProjectModal = ({ isOpen, onClose, onProjectAdded }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Photo de la Réalisation</label>
-                      <div className="relative">
+                      <div 
+                        onDragEnter={handleDrag}
+                        onDragOver={handleDrag}
+                        onDragLeave={handleDrag}
+                        onDrop={handleDrop}
+                        className={`relative border-2 border-dashed rounded-2xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${
+                          dragActive 
+                            ? 'border-brand-orange bg-brand-orange/5 scale-[1.01]' 
+                            : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-brand-orange/40'
+                        }`}
+                      >
                         <input 
                           type="file"
                           accept="image/*"
@@ -154,14 +209,19 @@ const AddProjectModal = ({ isOpen, onClose, onProjectAdded }) => {
                           id="file-upload"
                           className="hidden"
                         />
-                        <label 
-                          htmlFor="file-upload"
-                          className="flex items-center gap-3 w-full px-4 py-4 rounded-2xl bg-slate-50 border border-dashed border-slate-200 hover:bg-slate-100 cursor-pointer transition-all overflow-hidden"
-                        >
-                          <ImageIcon className="text-brand-orange shrink-0" size={18} />
-                          <span className="text-xs font-bold text-slate-400 truncate">
-                            {selectedFile ? selectedFile.name : 'Choisir une image'}
-                          </span>
+                        <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-1.5 w-full text-center py-2">
+                          <div className="w-10 h-10 bg-brand-orange/10 rounded-xl flex items-center justify-center text-brand-orange animate-pulse">
+                             <ImageIcon size={20} />
+                          </div>
+                          <div>
+                             <p className="text-[10px] font-black text-brand-dark uppercase tracking-wider">Glissez votre image</p>
+                             <p className="text-[8px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">ou cliquez pour parcourir</p>
+                          </div>
+                          {selectedFile && (
+                            <span className="text-[9px] font-black text-brand-orange uppercase tracking-wider bg-white px-2 py-0.5 rounded-full border border-slate-100 shadow-sm mt-1 truncate max-w-full">
+                               {selectedFile.name}
+                            </span>
+                          )}
                         </label>
                       </div>
                     </div>

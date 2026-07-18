@@ -10,8 +10,39 @@ import {
   AlertCircle,
   X,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  Building,
+  Construction,
+  BrickWall,
+  Zap,
+  Droplets,
+  Palette,
+  Trees,
+  Hammer,
+  HardHat,
+  Wrench,
+  Shield,
+  Home
 } from 'lucide-react';
+
+const getIcon = (iconName) => {
+  const map = {
+    'Building': <Building size={28} />,
+    'Construction': <Construction size={28} />,
+    'Brick': <BrickWall size={28} />,
+    'BrickWall': <BrickWall size={28} />,
+    'Zap': <Zap size={28} />,
+    'Droplets': <Droplets size={28} />,
+    'Palette': <Palette size={28} />,
+    'Trees': <Trees size={28} />,
+    'Hammer': <Hammer size={28} />,
+    'HardHat': <HardHat size={28} />,
+    'Wrench': <Wrench size={28} />,
+    'Shield': <Shield size={28} />,
+    'Home': <Home size={28} />
+  };
+  return map[iconName] || <Grid size={28} />;
+};
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 
@@ -133,9 +164,9 @@ const ManageCategories = () => {
               {filteredCategories.map((cat) => (
                  <div key={cat.id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200 hover:shadow-xl transition-all group relative overflow-hidden">
                     <div className="relative z-10">
-                       <div className="w-14 h-14 bg-slate-50 text-slate-400 group-hover:text-brand-orange group-hover:bg-brand-orange/10 rounded-2xl flex items-center justify-center mb-6 transition-all duration-500">
-                          <Grid size={28} />
-                       </div>
+                        <div className="w-14 h-14 bg-slate-50 text-slate-400 group-hover:text-brand-orange group-hover:bg-brand-orange/10 rounded-2xl flex items-center justify-center mb-6 transition-all duration-500">
+                           {getIcon(cat.icon_name)}
+                        </div>
                        <h3 className="text-xl font-black text-brand-dark mb-2"><span>{cat.name}</span></h3>
                        <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em] mb-6"><span>{cat.slug}</span></p>
                        
@@ -207,6 +238,29 @@ const ManageCategories = () => {
                           onChange={handleInputChange}
                           className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-brand-orange/10 outline-none transition-all font-mono text-xs text-slate-500"
                         />
+                     </div>
+
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Icône représentative</label>
+                        <select 
+                          name="icon_name"
+                          value={formData.icon_name}
+                          onChange={handleInputChange}
+                          className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-brand-orange/10 outline-none transition-all font-bold text-brand-dark appearance-none"
+                        >
+                           <option value="Building">🏢 Architecture / Bureau (Building)</option>
+                           <option value="Construction">🏗️ Génie Civil / Gros Œuvre (Construction)</option>
+                           <option value="BrickWall">🧱 Maçonnerie / Brique (BrickWall)</option>
+                           <option value="Zap">⚡ Électricité / Énergie (Zap)</option>
+                           <option value="Droplets">💧 Plomberie / Eau (Droplets)</option>
+                           <option value="Palette">🎨 Peinture / Décoration (Palette)</option>
+                           <option value="Trees">🌳 Aménagement / Jardin (Trees)</option>
+                           <option value="Hammer">🔨 Menuiserie / Charpente (Hammer)</option>
+                           <option value="HardHat">🪖 Sécurité / Chantier (HardHat)</option>
+                           <option value="Wrench">🔧 Maintenance / Outillage (Wrench)</option>
+                           <option value="Shield">🛡️ Protection / Assurance (Shield)</option>
+                           <option value="Home">🏠 Bâtiment Général (Home)</option>
+                        </select>
                      </div>
 
                      <div className="space-y-2">

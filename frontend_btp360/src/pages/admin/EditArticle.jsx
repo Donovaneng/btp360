@@ -61,10 +61,44 @@ const EditArticle = () => {
     }
   }, [id, isEdit]);
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const [dragActive, setDragActive] = useState(false);
 
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      uploadFile(file);
+    }
+  };
+
+  const uploadFile = async (file) => {
+    // 1. Validation de type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Format non supporté. Veuillez utiliser JPG, PNG ou WEBP.");
+      return;
+    }
+
+    // 2. Validation de taille (5 Mo max)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setError("L'image de couverture est trop volumineuse (max 5 Mo).");
+      return;
+    }
+
+    setError('');
     const formDataUpload = new FormData();
     formDataUpload.append('image', file);
 
@@ -79,6 +113,13 @@ const EditArticle = () => {
       setError("Échec de l'upload de l'image");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      uploadFile(file);
     }
   };
 
@@ -241,7 +282,15 @@ const EditArticle = () => {
 
                  <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Image de couverture</label>
-                    <div className="aspect-video bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center p-4 text-center overflow-hidden relative group">
+                    <div 
+                      onDragEnter={handleDrag}
+                      onDragOver={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDrop={handleDrop}
+                      className={`aspect-video bg-slate-50 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center p-4 text-center overflow-hidden relative group transition-all duration-300 ${
+                        dragActive ? 'border-brand-orange bg-brand-orange/5 scale-[1.01]' : 'border-slate-200 hover:border-brand-orange/40'
+                      }`}
+                    >
                         {formData.image_url ? (
                            <img src={formData.image_url} alt="Aperçu" className="w-full h-full object-cover" />
                         ) : (

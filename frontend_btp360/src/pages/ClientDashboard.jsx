@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import Loader360 from '../components/Loader360';
 import { 
   User, 
   Settings, 
@@ -11,6 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   ArrowRight,
+  ArrowLeft,
   Loader2,
   Star,
   Search,
@@ -21,7 +23,8 @@ import {
   X,
   MapPin,
   Building2,
-  ExternalLink
+  ExternalLink,
+  Send
 } from 'lucide-react';
 
 import api from '../services/api';
@@ -275,6 +278,245 @@ const ClientDashboard = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [devis, setDevis] = useState([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [loadingChat, setLoadingChat] = useState(false);
+  const [activeChatMobileView, setActiveChatMobileView] = useState('list');
+  const [unreadCount, setUnreadCount] = useState(0);
+  const messagesEndRef = useRef(null);
+  const [conversations, setConversations] = useState([
+    {
+      id: 1,
+      sender: "BTP 360 Support",
+      role: "Assistance Plateforme",
+      unread: true,
+      messages: [
+        { id: 1, sender: "BTP 360 Support", text: "Bonjour, et bienvenue sur BTP 360 ! Comment pouvons-nous vous aider aujourd'hui ?", time: "09:00", isMe: false }
+      ]
+    },
+    {
+      id: 2,
+      sender: "SGC Maconnerie",
+      role: "Entrepreneur Certifié",
+      unread: false,
+      messages: [
+        { id: 1, sender: "SGC Maconnerie", text: "Bonjour ! Nous avons bien reçu votre demande concernant la villa de Bonamoussadi. Avez-vous les plans d'architecte ?", time: "Hier", isMe: false }
+      ]
+    }
+  ]);
+  const [selectedConvId, setSelectedConvId] = useState(1);
+  const [activeMessageText, setActiveMessageText] = useState("");
+
+  const selectConversation = async (convId) => {
+    setSelectedConvId(convId);
+    setConversations(prev => prev.map(c => c.id === convId ? { ...c, unread: false } : c));
+    setActiveChatMobileView('chat');
+
+    // Si c'est une vraie conversation en base de données
+    if (convId !== 1 && convId !== 2) {
+      setLoadingChat(true);
+      try {
+        const res = await api.get(`/messages/conversation/${convId}`);
+        setConversations(prev => prev.map(c => {
+          if (c.id === convId) {
+            return {
+              ...c,
+              messages: res.data.map(m => ({
+                id: m.id,
+                sender: m.sender_id === user.id ? (user.name || "Moi") : c.sender,
+                text: m.message,
+                time: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+                isMe: m.sender_id === user.id
+              }))
+            };
+          }
+          return c;
+        }));
+      } catch (err) {
+        console.error("Erreur chargement messages:", err);
+      } finally {
+        setLoadingChat(false);
+      }
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!activeMessageText.trim()) return;
+
+    const messageText = activeMessageText;
+    setActiveMessageText("");
+
+    if (selectedConvId === 1 || selectedConvId === 2) {
+      // Mock messages logic
+      const newMessage = {
+        id: Date.now(),
+        sender: user?.name || "Client",
+        text: messageText,
+        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        isMe: true
+      };
+
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === selectedConvId) {
+          return {
+            ...conv,
+            messages: [...conv.messages, newMessage]
+          };
+        }
+        return conv;
+      }));
+
+      const currentConvId = selectedConvId;
+      setIsTyping(true);
+      setTimeout(() => {
+        let replyText = "Merci pour votre message. Nous revenons vers vous dans les plus brefs délais.";
+        if (currentConvId === 1) {
+          replyText = "Un conseiller technique a été notifié de votre message. Il vous répondra d'ici quelques instants. Merci de faire confiance à BTP 360 !";
+        } else if (currentConvId === 2) {
+          replyText = "Parfait, j'ai bien pris note de ces précisions. Je prépare un correctif pour votre devis et je vous l'envoie via la plateforme.";
+        }
+
+        const autoReply = {
+          id: Date.now() + 1,
+          sender: currentConvId === 1 ? "BTP 360 Support" : "SGC Maconnerie",
+          text: replyText,
+          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          isMe: false
+        };
+
+        setIsTyping(false);
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === currentConvId) {
+            return {
+              ...conv,
+              messages: [...conv.messages, autoReply]
+            };
+          }
+          return conv;
+        }));
+      }, 1500);
+    } else {
+      // Real API message
+      try {
+        const res = await api.post('/messages', {
+          receiver_id: selectedConvId,
+          message: messageText
+        });
+
+        const newMsg = {
+          id: res.data.data.id || Date.now(),
+          sender: user?.name || "Client",
+          text: messageText,
+          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          isMe: true
+        };
+
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === selectedConvId) {
+            return {
+              ...conv,
+              messages: [...conv.messages, newMsg]
+            };
+          }
+          return conv;
+        }));
+      } catch (err) {
+        console.error("Erreur envoi message:", err);
+        alert("Impossible d'envoyer le message.");
+      }
+    }
+  };
+
+  const fetchConversations = async (currentLeads, currentDevis) => {
+    try {
+      const convsRes = await api.get('/messages/conversations');
+      let loadedConvs = convsRes.data.map(c => ({
+        id: c.partner_id,
+        sender: c.company_name || c.partner_name,
+        role: c.role_name === 'partner' ? 'Entrepreneur Certifié' : c.role_name,
+        unread: c.unread_count > 0,
+        messages: c.last_message ? [{
+          id: Date.now(),
+          sender: c.company_name || c.partner_name,
+          text: c.last_message,
+          time: new Date(c.last_message_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          isMe: false
+        }] : []
+      }));
+
+      // Extraire les partenaires uniques depuis les leads et devis
+      const partnersFromLeads = currentLeads
+        .filter(l => l.partner_id)
+        .map(l => ({
+          id: l.partner_id,
+          sender: l.partner_company || l.partner_name,
+          role: 'Entrepreneur BTP'
+        }));
+
+      const partnersFromDevis = currentDevis
+        .filter(d => d.partner_id)
+        .map(d => ({
+          id: d.partner_id,
+          sender: d.partner_company || d.partner_name,
+          role: 'Entrepreneur BTP'
+        }));
+
+      const allPartners = [...partnersFromLeads, ...partnersFromDevis];
+      
+      const uniquePartners = [];
+      const seen = new Set();
+      allPartners.forEach(p => {
+        if (!seen.has(p.id)) {
+          seen.add(p.id);
+          uniquePartners.push(p);
+        }
+      });
+
+      const mergedConvs = [...loadedConvs];
+      uniquePartners.forEach(p => {
+        if (!mergedConvs.some(c => c.id === p.id)) {
+          mergedConvs.push({
+            id: p.id,
+            sender: p.sender,
+            role: p.role,
+            unread: false,
+            messages: []
+          });
+        }
+      });
+
+      const defaultConvs = [
+        {
+          id: 1,
+          sender: "BTP 360 Support",
+          role: "Assistance Plateforme",
+          unread: false,
+          messages: [
+            { id: 1, sender: "BTP 360 Support", text: "Bonjour, et bienvenue sur BTP 360 ! Comment pouvons-nous vous aider aujourd'hui?", time: "09:00", isMe: false }
+          ]
+        },
+        {
+          id: 2,
+          sender: "SGC Maconnerie",
+          role: "Entrepreneur Certifié",
+          unread: false,
+          messages: [
+            { id: 1, sender: "SGC Maconnerie", text: "Bonjour ! Nous avons bien reçu votre demande concernant la villa de Bonamoussadi. Avez-vous les plans d'architecte ?", time: "Hier", isMe: false }
+          ]
+        }
+      ];
+
+      defaultConvs.forEach(mock => {
+        if (!mergedConvs.some(c => c.id === mock.id)) {
+          mergedConvs.push(mock);
+        }
+      });
+
+      setConversations(mergedConvs);
+    } catch (err) {
+      console.error("Erreur chargement conversations:", err);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -285,7 +527,10 @@ const ClientDashboard = () => {
       ]);
       setLeads(leadsRes.data);
       setProjects(projectsRes.data.slice(0, 3));
-      setDevis(Array.isArray(devisRes.data) ? devisRes.data : []);
+      const devisData = Array.isArray(devisRes.data) ? devisRes.data : [];
+      setDevis(devisData);
+      
+      await fetchConversations(leadsRes.data, devisData);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     } finally {
@@ -295,6 +540,32 @@ const ClientDashboard = () => {
 
   useEffect(() => {
     fetchData();
+
+    const token = localStorage.getItem('btp360_token');
+    if (!token) return;
+
+    const sseUrl = `http://localhost/btp_360/backend_btp360/index.php/notifications/stream?token=${token}`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.unread_messages !== undefined) {
+          setUnreadCount(data.unread_messages);
+          fetchData();
+        }
+      } catch (err) {
+        console.error('Erreur décodage SSE:', err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error('SSE Error:', err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   const handleCancelRequest = async (id) => {
@@ -368,10 +639,11 @@ const ClientDashboard = () => {
 
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  const mockMessages = [
-    { id: 1, sender: "BTP 360 Support", text: "Bienvenue sur votre espace client personnalisé.", time: "Hier", unread: true },
-    { id: 2, sender: "SGC Maconnerie", text: "Nous avons bien reçu votre demande de devis.", time: "2j", unread: false }
-  ];
+  const selectedConv = conversations.find(c => c.id === selectedConvId) || conversations[0];
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedConvId, selectedConv?.messages, isTyping]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-hidden">
@@ -427,6 +699,11 @@ const ClientDashboard = () => {
             className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl font-bold transition-all ${activeTab === 'messages' ? 'bg-white/10 text-brand-orange' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
           >
             <MessageSquare size={20} /> Messages
+            {unreadCount > 0 && (
+              <span className="ml-auto bg-brand-orange text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                {unreadCount}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => { setActiveTab('saved'); closeSidebar(); }}
@@ -566,10 +843,7 @@ const ClientDashboard = () => {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-10 pb-20">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24">
-            <Loader2 className="animate-spin text-brand-orange mb-4" size={48} />
-            <p className="text-slate-400 font-black uppercase tracking-widest text-sm">Chargement de votre univers...</p>
-          </div>
+          <Loader360 statusText="Chargement de votre univers..." />
         ) : (
           <>
             {activeTab === 'overview' && (
@@ -740,37 +1014,120 @@ const ClientDashboard = () => {
             )}
 
             {activeTab === 'messages' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 h-[600px] animate-fade-in">
-                 <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                    <div className="p-8 border-b border-slate-50 font-black uppercase tracking-widest text-xs text-slate-400">Conversations</div>
-                    <div className="flex-1 overflow-y-auto">
-                       {mockMessages.map(msg => (
-                          <button key={msg.id} className={`w-full p-8 text-left hover:bg-slate-50 transition-all border-b border-slate-50 flex gap-4 ${msg.unread ? 'bg-brand-orange/5' : ''}`}>
-                             <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-black text-brand-orange shrink-0">
-                                {msg.sender.charAt(0)}
-                             </div>
-                             <div className="overflow-hidden">
-                                <div className="flex justify-between items-center mb-1">
-                                   <p className="text-sm font-black text-brand-dark uppercase truncate">{msg.sender}</p>
-                                   <span className="text-[10px] font-bold text-slate-400">{msg.time}</span>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px] animate-fade-in">
+                 {/* Left Panel: Conversations List */}
+                 <div className={`bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col ${activeChatMobileView === 'list' ? 'flex' : 'hidden lg:flex'}`}>
+                    <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                       <h3 className="font-black uppercase tracking-widest text-xs text-brand-dark">Messagerie</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+                       {conversations.map(conv => {
+                          const lastMsg = conv.messages[conv.messages.length - 1];
+                          const isActive = conv.id === selectedConvId;
+                          return (
+                             <button 
+                               key={conv.id} 
+                               onClick={() => { selectConversation(conv.id); setActiveChatMobileView('chat'); }}
+                               className={`w-full p-6 text-left transition-all flex gap-4 items-start relative ${
+                                 isActive 
+                                   ? 'bg-slate-50 border-r-4 border-brand-orange shadow-inner' 
+                                   : 'hover:bg-slate-50/50'
+                               }`}
+                             >
+                                <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-black text-brand-orange shrink-0">
+                                   {conv.sender.charAt(0)}
                                 </div>
-                                <p className="text-xs text-slate-500 font-medium truncate">{msg.text}</p>
-                             </div>
-                          </button>
-                       ))}
+                                <div className="overflow-hidden flex-1">
+                                   <div className="flex justify-between items-baseline mb-1">
+                                      <p className="text-xs font-black text-brand-dark uppercase truncate">{conv.sender}</p>
+                                      <span className="text-[9px] font-bold text-slate-400">{lastMsg?.time || ''}</span>
+                                   </div>
+                                   <p className="text-xs text-slate-500 font-medium truncate">{lastMsg?.text || ''}</p>
+                                </div>
+                                {conv.unread && (
+                                   <span className="absolute top-6 right-6 w-2.5 h-2.5 bg-brand-orange rounded-full"></span>
+                                )}
+                             </button>
+                          );
+                       })}
                     </div>
                  </div>
-                 <div className="lg:col-span-2 bg-white rounded-[3rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center p-20 text-center relative overflow-hidden">
-                    <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-200">
-                       <MessageSquare size={48} />
+
+                 {/* Right Panel: Active Chat Window */}
+                 <div className={`lg:col-span-2 bg-white rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col overflow-hidden ${activeChatMobileView === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
+                    {/* Chat Header */}
+                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+                       <div className="flex items-center gap-4">
+                          <button 
+                             onClick={() => setActiveChatMobileView('list')}
+                             className="lg:hidden p-2 hover:bg-slate-100 rounded-full text-slate-400"
+                          >
+                             <ArrowLeft size={20} className="text-brand-orange" />
+                          </button>
+                          <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center font-black text-brand-orange text-sm">
+                             {selectedConv.sender.charAt(0)}
+                          </div>
+                          <div>
+                             <h4 className="text-xs font-black text-brand-dark uppercase tracking-wider">{selectedConv.sender}</h4>
+                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{selectedConv.role}</p>
+                          </div>
+                       </div>
+                       <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">En ligne</span>
+                       </div>
                     </div>
-                    <h3 className="text-2xl font-black text-brand-dark mb-4 uppercase tracking-tight">Messagerie Sécurisée</h3>
-                    <p className="text-slate-400 font-medium max-w-sm mb-10 leading-relaxed">
-                       Sélectionnez une conversation pour discuter avec vos experts et partenaires.
-                    </p>
-                    <div className="px-8 py-3 bg-slate-50 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] border border-slate-100">
-                       Ouverture Prochaine
-                    </div>
+                     {loadingChat ? (
+                        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/30 gap-3">
+                           <Loader2 className="animate-spin text-brand-orange" size={32} />
+                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chargement de la conversation...</span>
+                        </div>
+                     ) : (
+                        <div className="flex-1 p-6 overflow-y-auto bg-slate-50/30 space-y-4">
+                           {selectedConv.messages.map(msg => (
+                              <div 
+                                key={msg.id} 
+                                className={`flex flex-col max-w-[75%] animate-scale-in ${msg.isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}
+                              >
+                                 <div className={`p-4 text-sm font-medium leading-relaxed shadow-sm transition-all duration-300 ${
+                                   msg.isMe 
+                                     ? 'bg-brand-dark text-white rounded-2xl rounded-tr-none' 
+                                     : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-none'
+                                 }`}>
+                                    {msg.text}
+                                 </div>
+                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 px-1">{msg.time}</span>
+                              </div>
+                           ))}
+
+                           {isTyping && (
+                              <div className="flex gap-4 items-start animate-fade-in mr-auto max-w-[75%]">
+                                 <div className="bg-white text-slate-500 border border-slate-100 px-6 py-4 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-1.5 h-12">
+                                    <span className="w-2 h-2 bg-brand-orange rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                    <span className="w-2 h-2 bg-brand-orange rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                    <span className="w-2 h-2 bg-brand-orange rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                 </div>
+                              </div>
+                           )}
+                           <div ref={messagesEndRef} />
+                        </div>
+                     )}
+
+                    <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-100 bg-white flex gap-3 items-center shrink-0">
+                       <input 
+                         type="text"
+                         value={activeMessageText}
+                         onChange={(e) => setActiveMessageText(e.target.value)}
+                         placeholder="Rédigez votre message ici..."
+                         className="flex-1 px-6 py-4 bg-slate-50 border-none rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-orange/20 text-brand-dark"
+                       />
+                       <button 
+                         type="submit"
+                         className="p-4 bg-brand-orange text-white rounded-xl shadow-lg shadow-brand-orange/20 hover:scale-105 transition-all flex items-center justify-center shrink-0 hover:bg-black"
+                       >
+                          <Send size={16} />
+                       </button>
+                    </form>
                  </div>
               </div>
             )}

@@ -19,7 +19,7 @@ class ReviewController extends Controller {
             SELECT r.*, u.name as client_name, u.avatar_url as client_avatar
             FROM reviews r
             JOIN users u ON u.id = r.client_id
-            WHERE r.partner_id = ?
+            WHERE r.partner_id = ? AND r.status = 'approved'
             ORDER BY r.created_at DESC
         ");
         $stmt->execute([(int)$partnerId]);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -18,7 +18,10 @@ import {
   ExternalLink,
   Trash2,
   ChevronRight,
-  FileText
+  FileText,
+  MessageSquare,
+  Send,
+  ArrowLeft
 } from 'lucide-react';
 import AddProjectModal from '../components/AddProjectModal';
 import LeadDetailsModal from '../components/LeadDetailsModal';
@@ -38,6 +41,247 @@ const PartnerDashboard = () => {
   const [isDeletingProject, setIsDeletingProject] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [loadingChat, setLoadingChat] = useState(false);
+  const [activeChatMobileView, setActiveChatMobileView] = useState('list');
+  const closeSidebar = () => setIsSidebarOpen(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingDevisCount, setPendingDevisCount] = useState(0);
+  const messagesEndRef = useRef(null);
+  const [conversations, setConversations] = useState([
+    {
+      id: 1,
+      sender: "BTP 360 Support",
+      role: "Assistance Plateforme",
+      unread: false,
+      messages: [
+        { id: 1, sender: "BTP 360 Support", text: "Bonjour ! Nous sommes à votre disposition pour vous aider à optimiser votre visibilité.", time: "09:00", isMe: false }
+      ]
+    },
+    {
+      id: 2,
+      sender: "Jean Dupont",
+      role: "Client BTP 360",
+      unread: true,
+      messages: [
+        { id: 1, sender: "Jean Dupont", text: "Bonjour ! Serait-il possible de convenir d'un rendez-vous sur le chantier à Bonamoussadi ce samedi ?", time: "Hier", isMe: false }
+      ]
+    }
+  ]);
+  const [selectedConvId, setSelectedConvId] = useState(1);
+  const [activeMessageText, setActiveMessageText] = useState("");
+
+  const selectConversation = async (convId) => {
+    setSelectedConvId(convId);
+    setConversations(prev => prev.map(c => c.id === convId ? { ...c, unread: false } : c));
+    setActiveChatMobileView('chat');
+
+    // Si c'est une vraie conversation en base de données
+    if (convId !== 1 && convId !== 2) {
+      setLoadingChat(true);
+      try {
+        const res = await api.get(`/messages/conversation/${convId}`);
+        setConversations(prev => prev.map(c => {
+          if (c.id === convId) {
+            return {
+              ...c,
+              messages: res.data.map(m => ({
+                id: m.id,
+                sender: m.sender_id === user.id ? (user.name || "Moi") : c.sender,
+                text: m.message,
+                time: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+                isMe: m.sender_id === user.id
+              }))
+            };
+          }
+          return c;
+        }));
+      } catch (err) {
+        console.error("Erreur chargement messages:", err);
+      } finally {
+        setLoadingChat(false);
+      }
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!activeMessageText.trim()) return;
+
+    const messageText = activeMessageText;
+    setActiveMessageText("");
+
+    if (selectedConvId === 1 || selectedConvId === 2) {
+      // Mock messages logic
+      const newMessage = {
+        id: Date.now(),
+        sender: user?.name || "Partenaire",
+        text: messageText,
+        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        isMe: true
+      };
+
+      setConversations(prev => prev.map(conv => {
+        if (conv.id === selectedConvId) {
+          return {
+            ...conv,
+            messages: [...conv.messages, newMessage]
+          };
+        }
+        return conv;
+      }));
+
+      const currentConvId = selectedConvId;
+      setIsTyping(true);
+      setTimeout(() => {
+        let replyText = "Merci pour votre réponse. Je vous recontacte rapidement.";
+        if (currentConvId === 1) {
+          replyText = "Un administrateur technique a bien reçu votre demande. Nous traitons votre dossier dans les plus brefs délais.";
+        } else if (currentConvId === 2) {
+          replyText = "Entendu, samedi matin me convient parfaitement. À samedi !";
+        }
+
+        const autoReply = {
+          id: Date.now() + 1,
+          sender: currentConvId === 1 ? "BTP 360 Support" : "Jean Dupont",
+          text: replyText,
+          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          isMe: false
+        };
+
+        setIsTyping(false);
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === currentConvId) {
+            return {
+              ...conv,
+              messages: [...conv.messages, autoReply]
+            };
+          }
+          return conv;
+        }));
+      }, 1500);
+    } else {
+      // Real API message
+      try {
+        const res = await api.post('/messages', {
+          receiver_id: selectedConvId,
+          message: messageText
+        });
+
+        const newMsg = {
+          id: res.data.data.id || Date.now(),
+          sender: user?.name || "Partenaire",
+          text: messageText,
+          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          isMe: true
+        };
+
+        setConversations(prev => prev.map(conv => {
+          if (conv.id === selectedConvId) {
+            return {
+              ...conv,
+              messages: [...conv.messages, newMsg]
+            };
+          }
+          return conv;
+        }));
+      } catch (err) {
+        console.error("Erreur envoi message:", err);
+        alert("Impossible d'envoyer le message.");
+      }
+    }
+  };
+
+  const fetchConversations = async (currentLeads, currentDevis) => {
+    try {
+      const convsRes = await api.get('/messages/conversations');
+      let loadedConvs = convsRes.data.map(c => ({
+        id: c.partner_id,
+        sender: c.partner_name,
+        role: c.role_name === 'client' ? 'Client Particulier' : c.role_name,
+        unread: c.unread_count > 0,
+        messages: c.last_message ? [{
+          id: Date.now(),
+          sender: c.partner_name,
+          text: c.last_message,
+          time: new Date(c.last_message_time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          isMe: false
+        }] : []
+      }));
+
+      // Extraire les clients uniques depuis les leads et devis
+      const clientsFromLeads = currentLeads
+        .filter(l => l.client_id)
+        .map(l => ({
+          id: l.client_id,
+          sender: l.client_name,
+          role: 'Client BTP 360'
+        }));
+
+      const clientsFromDevis = currentDevis
+        .filter(d => d.client_id)
+        .map(d => ({
+          id: d.client_id,
+          sender: d.client_name,
+          role: 'Client BTP 360'
+        }));
+
+      const allClients = [...clientsFromLeads, ...clientsFromDevis];
+      
+      const uniqueClients = [];
+      const seen = new Set();
+      allClients.forEach(c => {
+        if (!seen.has(c.id)) {
+          seen.add(c.id);
+          uniqueClients.push(c);
+        }
+      });
+
+      const mergedConvs = [...loadedConvs];
+      uniqueClients.forEach(cl => {
+        if (!mergedConvs.some(c => c.id === cl.id)) {
+          mergedConvs.push({
+            id: cl.id,
+            sender: cl.sender,
+            role: cl.role,
+            unread: false,
+            messages: []
+          });
+        }
+      });
+
+      const defaultConvs = [
+        {
+          id: 1,
+          sender: "BTP 360 Support",
+          role: "Assistance Plateforme",
+          unread: false,
+          messages: [
+            { id: 1, sender: "BTP 360 Support", text: "Bonjour ! Nous sommes à votre disposition pour vous aider à optimiser votre visibilité.", time: "09:00", isMe: false }
+          ]
+        },
+        {
+          id: 2,
+          sender: "Jean Dupont",
+          role: "Client BTP 360",
+          unread: false,
+          messages: [
+            { id: 1, sender: "Jean Dupont", text: "Bonjour ! Serait-il possible de convenir d'un rendez-vous sur le chantier à Bonamoussadi ce samedi ?", time: "Hier", isMe: false }
+          ]
+        }
+      ];
+
+      defaultConvs.forEach(mock => {
+        if (!mergedConvs.some(c => c.id === mock.id)) {
+          mergedConvs.push(mock);
+        }
+      });
+
+      setConversations(mergedConvs);
+    } catch (err) {
+      console.error("Erreur chargement conversations:", err);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -49,8 +293,10 @@ const PartnerDashboard = () => {
 
       setLeads(leadsRes.data);
       setProjects(projectsRes.data);
-      setDevis(Array.isArray(devisRes.data) ? devisRes.data : []);
+      const devisData = Array.isArray(devisRes.data) ? devisRes.data : [];
+      setDevis(devisData);
 
+      await fetchConversations(leadsRes.data, devisData);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     } finally {
@@ -85,6 +331,35 @@ const PartnerDashboard = () => {
 
   useEffect(() => {
     fetchData();
+
+    const token = localStorage.getItem('btp360_token');
+    if (!token) return;
+
+    const sseUrl = `http://localhost/btp_360/backend_btp360/index.php/notifications/stream?token=${token}`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.unread_messages !== undefined) {
+          setUnreadCount(data.unread_messages);
+        }
+        if (data.pending_devis !== undefined) {
+          setPendingDevisCount(data.pending_devis);
+        }
+        fetchData();
+      } catch (err) {
+        console.error('Erreur décodage SSE:', err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error('SSE Error:', err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   const pendingLeads = leads.filter(l => l.status === 'pending');
@@ -124,7 +399,11 @@ const PartnerDashboard = () => {
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
 
-  const closeSidebar = () => setIsSidebarOpen(false);
+  const selectedConv = conversations.find(c => c.id === selectedConvId) || conversations[0];
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedConvId, selectedConv?.messages, isTyping]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-hidden">
@@ -174,9 +453,20 @@ const PartnerDashboard = () => {
             className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl font-bold transition-all text-sm uppercase tracking-wider ${activeTab === 'devis' ? 'bg-white/10 text-brand-orange' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
           >
             <FileText size={20} /> Devis Reçus
-            {pendingDevis.length > 0 && (
+            {(pendingDevisCount || pendingDevis.length) > 0 && (
               <span className="ml-auto bg-blue-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
-                {pendingDevis.length}
+                {pendingDevisCount || pendingDevis.length}
+              </span>
+            )}
+          </button>
+          <button 
+            onClick={() => { setActiveTab('messages'); closeSidebar(); }}
+            className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl font-bold transition-all text-sm uppercase tracking-wider ${activeTab === 'messages' ? 'bg-white/10 text-brand-orange' : 'text-slate-400 hover:bg-white/5 hover:text-white'}`}
+          >
+            <MessageSquare size={20} /> Messages
+            {(unreadCount || conversations.filter(c => c.unread).length) > 0 && (
+              <span className="ml-auto bg-brand-orange text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                {unreadCount || conversations.filter(c => c.unread).length}
               </span>
             )}
           </button>
@@ -391,9 +681,9 @@ const PartnerDashboard = () => {
             </div>
 
             {/* Activity & Projects Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className={`${activeTab === 'messages' ? 'w-full' : 'grid grid-cols-1 lg:grid-cols-3 gap-10'}`}>
               {/* Content based on active tab */}
-              <div className="lg:col-span-2 space-y-10">
+              <div className={`${activeTab === 'messages' ? 'w-full' : 'lg:col-span-2'} space-y-10`}>
                 {activeTab === 'overview' && (
                   <>
                     <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 p-6 md:p-10">
@@ -629,11 +919,133 @@ const PartnerDashboard = () => {
                     )}
                   </div>
                 )}
+                {activeTab === 'messages' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px] animate-fade-in text-left">
+                     {/* Left Panel: Conversations List */}
+                     <div className={`bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col ${activeChatMobileView === 'list' ? 'flex' : 'hidden lg:flex'}`}>
+                        <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                           <h3 className="font-black uppercase tracking-widest text-xs text-brand-dark">Messagerie</h3>
+                        </div>
+                        <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+                           {conversations.map(conv => {
+                              const lastMsg = conv.messages[conv.messages.length - 1];
+                              const isActive = conv.id === selectedConvId;
+                              return (
+                                 <button 
+                                   key={conv.id} 
+                                   type="button"
+                                   onClick={() => selectConversation(conv.id)}
+                                   className={`w-full p-6 text-left transition-all flex gap-4 items-start relative ${
+                                     isActive 
+                                       ? 'bg-slate-50 border-r-4 border-brand-orange shadow-inner' 
+                                       : 'hover:bg-slate-50/50'
+                                   }`}
+                                 >
+                                    <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center font-black text-brand-orange shrink-0">
+                                       {conv.sender.charAt(0)}
+                                    </div>
+                                    <div className="overflow-hidden flex-1">
+                                       <div className="flex justify-between items-baseline mb-1">
+                                          <p className="text-xs font-black text-brand-dark uppercase truncate">{conv.sender}</p>
+                                          <span className="text-[9px] font-bold text-slate-400">{lastMsg?.time || ''}</span>
+                                       </div>
+                                       <p className="text-xs text-slate-500 font-medium truncate">{lastMsg?.text || ''}</p>
+                                    </div>
+                                    {conv.unread && (
+                                       <span className="absolute top-6 right-6 w-2.5 h-2.5 bg-brand-orange rounded-full"></span>
+                                    )}
+                                 </button>
+                              );
+                           })}
+                        </div>
+                     </div>
+
+                     {/* Right Panel: Active Chat Window */}
+                     <div className={`lg:col-span-2 bg-white rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col overflow-hidden ${activeChatMobileView === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
+                        {/* Chat Header */}
+                        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+                           <div className="flex items-center gap-4">
+                              <button 
+                                 onClick={() => setActiveChatMobileView('list')}
+                                 className="lg:hidden p-2 hover:bg-slate-100 rounded-full text-slate-400"
+                              >
+                                 <ArrowLeft size={20} className="text-brand-orange" />
+                              </button>
+                              <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center font-black text-brand-orange text-sm">
+                                 {selectedConv.sender.charAt(0)}
+                              </div>
+                              <div>
+                                 <h4 className="text-xs font-black text-brand-dark uppercase tracking-wider">{selectedConv.sender}</h4>
+                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{selectedConv.role}</p>
+                              </div>
+                           </div>
+                           <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">En ligne</span>
+                           </div>
+                        </div>
+
+                         {loadingChat ? (
+                            <div className="flex-1 flex flex-col items-center justify-center bg-slate-50/30 gap-3">
+                               <Loader2 className="animate-spin text-brand-orange" size={32} />
+                               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chargement de la conversation...</span>
+                            </div>
+                         ) : (
+                            <div className="flex-1 p-6 overflow-y-auto bg-slate-50/30 space-y-4">
+                               {selectedConv.messages.map(msg => (
+                                  <div 
+                                    key={msg.id} 
+                                    className={`flex flex-col max-w-[75%] animate-scale-in ${msg.isMe ? 'ml-auto items-end' : 'mr-auto items-start'}`}
+                                  >
+                                     <div className={`p-4 text-sm font-medium leading-relaxed shadow-sm transition-all duration-300 ${
+                                       msg.isMe 
+                                         ? 'bg-brand-dark text-white rounded-2xl rounded-tr-none' 
+                                         : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-none'
+                                     }`}>
+                                        {msg.text}
+                                     </div>
+                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 px-1">{msg.time}</span>
+                                  </div>
+                               ))}
+
+                               {isTyping && (
+                                  <div className="flex gap-4 items-start animate-fade-in mr-auto max-w-[75%]">
+                                     <div className="bg-white text-slate-500 border border-slate-100 px-6 py-4 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-1.5 h-12">
+                                        <span className="w-2 h-2 bg-brand-orange rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                        <span className="w-2 h-2 bg-brand-orange rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                        <span className="w-2 h-2 bg-brand-orange rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                     </div>
+                                  </div>
+                               )}
+                               <div ref={messagesEndRef} />
+                            </div>
+                         )}
+
+                        {/* Message Input Form */}
+                        <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-100 bg-white flex gap-3 items-center shrink-0">
+                           <input 
+                             type="text"
+                             value={activeMessageText}
+                             onChange={(e) => setActiveMessageText(e.target.value)}
+                             placeholder="Rédigez votre message ici..."
+                             className="flex-1 px-6 py-4 bg-slate-50 border-none rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-brand-orange/20 text-brand-dark"
+                           />
+                           <button 
+                             type="submit"
+                             className="p-4 bg-brand-orange text-white rounded-xl shadow-lg shadow-brand-orange/20 hover:scale-105 transition-all flex items-center justify-center shrink-0 hover:bg-black"
+                           >
+                              <Send size={16} />
+                           </button>
+                        </form>
+                     </div>
+                  </div>
+                )}
               </div>
 
               {/* Sidebar Area: Small Tools */}
-              <div className="space-y-10">
-                <div className="bg-brand-orange rounded-[2.5rem] p-10 text-white shadow-xl shadow-brand-orange/20 relative overflow-hidden">
+              {activeTab !== 'messages' && (
+                <div className="space-y-10">
+                  <div className="bg-brand-orange rounded-[2.5rem] p-10 text-white shadow-xl shadow-brand-orange/20 relative overflow-hidden">
                     <div className="relative z-10 space-y-6">
                       <h3 className="text-2xl font-black leading-tight">Booster votre visibilité ?</h3>
                       <p className="text-white/80 font-medium">Uploadez vos photos de chantiers pour attirer plus de clients.</p>
@@ -662,11 +1074,12 @@ const PartnerDashboard = () => {
                           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                             <div className="h-full bg-brand-orange transition-all duration-1000 ease-out" style={{ width: `${profileCompleteness}%` }}></div>
                           </div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-3 text-center">Profil complété à {profileCompleteness}%</p>
+                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-3 text-center">Profil complété à {profileCompleteness}%</p>
                       </div>
                     </div>
                 </div>
               </div>
+            )}
             </div>
           </>
         )}

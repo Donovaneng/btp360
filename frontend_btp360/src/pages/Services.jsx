@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Building, Construction, BrickWall, Zap, Droplets, Palette, Trees } from 'lucide-react';
+import { ArrowRight, Building, Construction, BrickWall, Zap, Droplets, Palette, Trees, Hammer, HardHat, Wrench, Shield, Home } from 'lucide-react';
 
 import api from '../services/api';
 import SkeletonCard from '../components/SkeletonCard';
@@ -11,15 +11,31 @@ const Services = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Mapping slugs à des icônes Lucide
-  const iconMap = {
-    'architecture': <Building size={32} />,
-    'genie-civil': <Construction size={32} />,
-    'maconnerie': <BrickWall size={32} />,
-    'electricite': <Zap size={32} />,
-    'plomberie': <Droplets size={32} />,
-    'peinture': <Palette size={32} />,
-    'jardinage': <Trees size={32} />,
+  const getIcon = (iconName) => {
+    const map = {
+      'Building': <Building size={32} />,
+      'Construction': <Construction size={32} />,
+      'Brick': <BrickWall size={32} />,
+      'BrickWall': <BrickWall size={32} />,
+      'Zap': <Zap size={32} />,
+      'Droplets': <Droplets size={32} />,
+      'Palette': <Palette size={32} />,
+      'Trees': <Trees size={32} />,
+      'Hammer': <Hammer size={32} />,
+      'HardHat': <HardHat size={32} />,
+      'Wrench': <Wrench size={32} />,
+      'Shield': <Shield size={32} />,
+      'Home': <Home size={32} />,
+      // Slugs fallbacks
+      'architecture': <Building size={32} />,
+      'genie-civil': <Construction size={32} />,
+      'maconnerie': <BrickWall size={32} />,
+      'electricite': <Zap size={32} />,
+      'plomberie': <Droplets size={32} />,
+      'peinture': <Palette size={32} />,
+      'jardinage': <Trees size={32} />
+    };
+    return map[iconName] || <Building size={32} />;
   };
 
   useEffect(() => {
@@ -64,7 +80,7 @@ const Services = () => {
                 
                 <div className="relative z-10">
                   <div className="w-16 h-16 bg-gradient-brand rounded-2xl flex items-center justify-center text-white mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    {iconMap[category.slug] || <Building size={32} />}
+                    {getIcon(category.icon_name || category.slug)}
                   </div>
                   
                   <h3 className="text-2xl font-bold text-brand-dark mb-4 group-hover:text-brand-orange transition-colors">

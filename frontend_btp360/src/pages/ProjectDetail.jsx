@@ -16,9 +16,9 @@ import api from '../services/api';
 import { useSEO } from '../hooks/useSEO';
 
 const ProjectDetail = () => {
-  useSEO('Détail du Projet', 'Explorez les détails de cette réalisation par un expert certifié BTP 360.');
   const { id } = useParams();
   const [project, setProject] = useState(null);
+  useSEO(project ? project.title : 'Chargement...', project ? project.description : 'Détail de la réalisation BTP 360.');
   const [loading, setLoading] = useState(true);
   const [shared, setShared] = useState(false);
 

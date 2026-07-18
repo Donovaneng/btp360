@@ -5,10 +5,10 @@ import api from '../services/api';
 import { useSEO } from '../hooks/useSEO';
 
 const ArticleDetail = () => {
-  useSEO('Article', 'Lisez cet article de l\'Académie BTP 360 pour vos projets de construction.');
   const { slug } = useParams();
   const navigate = useNavigate();
   const [article, setArticle] = useState(null);
+  useSEO(article ? article.title : 'Chargement...', article ? article.excerpt : 'Chargement de l\'article...');
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [comment, setComment] = useState("");

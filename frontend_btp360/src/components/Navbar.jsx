@@ -68,7 +68,7 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Right Actions */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-4">
             {user ? (
               <div className="flex items-center gap-3">
                 <Link 
@@ -108,7 +108,7 @@ const Navbar = () => {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="lg:hidden flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`transition-colors ${scrolled ? 'text-brand-dark' : 'text-white'} hover:text-brand-orange`}
@@ -119,9 +119,8 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile Navigation */}
       <div 
-        className={`md:hidden absolute w-full bg-white shadow-xl transition-all duration-300 ease-in-out ${
+        className={`lg:hidden absolute w-full bg-white shadow-xl transition-all duration-300 ease-in-out ${
           isOpen ? 'max-h-96 opacity-100 border-t border-gray-100' : 'max-h-0 opacity-0 overflow-hidden'
         }`}
       >

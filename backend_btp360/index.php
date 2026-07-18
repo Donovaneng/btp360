@@ -38,6 +38,8 @@ $router->add('DELETE', '/admin/clients/(\d+)', 'AdminController@deleteClient');
 $router->add('DELETE', '/admin/partners/(\d+)', 'AdminController@deletePartner');
 $router->add('GET', '/admin/reviews', 'AdminController@getReviews');
 $router->add('DELETE', '/admin/reviews/(\d+)', 'AdminController@deleteReview');
+$router->add('PUT', '/admin/reviews/(\d+)/status', 'AdminController@updateReviewStatus');
+$router->add('GET', '/notifications/stream', 'NotificationController@stream');
 
 // Auth Routes
 $router->add('POST', '/register', 'AuthController@register');
@@ -105,6 +107,11 @@ $router->add('PUT', '/devis/(\d+)/status', 'DevisController@updateStatus');
 
 // Contact Route
 $router->add('POST', '/contact', 'ContactController@send');
+
+// Messages (Chat) Routes
+$router->add('POST', '/messages', 'MessageController@send');
+$router->add('GET', '/messages/conversation/(\d+)', 'MessageController@getConversation');
+$router->add('GET', '/messages/conversations', 'MessageController@getConversations');
 
 // Admin Devis Route
 $router->add('GET', '/admin/devis', 'DevisController@adminAll');

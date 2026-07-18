@@ -7,7 +7,9 @@ import {
   Search,
   ExternalLink,
   Loader2,
-  User
+  User,
+  Check,
+  X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
@@ -48,6 +50,16 @@ const ManageComments = () => {
       alert('Impossible de supprimer cet avis');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await api.put(`/admin/reviews/${id}/status`, { status: newStatus });
+      setReviews(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+    } catch (err) {
+      console.error('Erreur changement statut:', err);
+      alert('Impossible de modifier le statut de cet avis');
     }
   };
 
@@ -140,7 +152,18 @@ const ManageComments = () => {
                       </div>
                       <div>
                         <p className="font-black text-brand-dark uppercase text-[10px] tracking-widest">{review.client_name}</p>
-                        <p className="text-[9px] text-slate-400 font-bold">{formatDate(review.created_at)}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-[9px] text-slate-400 font-bold">{formatDate(review.created_at)}</p>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                            review.status === 'approved' ? 'bg-green-50 text-green-600 border border-green-100' :
+                            review.status === 'rejected' ? 'bg-red-50 text-red-600 border border-red-100' :
+                            'bg-amber-50 text-amber-600 border border-amber-100'
+                          }`}>
+                            {review.status === 'approved' ? 'Approuvé' :
+                             review.status === 'rejected' ? 'Rejeté' :
+                             'En Attente'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -171,6 +194,22 @@ const ManageComments = () => {
 
                 {/* Actions */}
                 <div className="md:w-44 flex md:flex-col gap-3 justify-center shrink-0">
+                  {review.status !== 'approved' && (
+                    <button
+                      onClick={() => handleStatusChange(review.id, 'approved')}
+                      className="flex-1 flex items-center justify-center gap-2 bg-green-50 text-green-600 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-green-100 hover:text-green-700 transition-colors border border-green-100"
+                    >
+                      <Check size={14} /> Approuver
+                    </button>
+                  )}
+                  {review.status !== 'rejected' && (
+                    <button
+                      onClick={() => handleStatusChange(review.id, 'rejected')}
+                      className="flex-1 flex items-center justify-center gap-2 bg-amber-50 text-amber-600 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-100 hover:text-amber-700 transition-colors border border-amber-100"
+                    >
+                      <X size={14} /> Rejeter
+                    </button>
+                  )}
                   <button
                     onClick={() => setReviewToDelete(review)}
                     className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-500 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-red-100 hover:text-red-600 transition-colors border border-red-100"

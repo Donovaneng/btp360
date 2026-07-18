@@ -16,7 +16,7 @@ class ReviewModel {
      * Récupère tous les avis avec les informations client et partenaire (Admin)
      */
     public function all() {
-        $sql = "SELECT r.id, r.rating, r.comment, r.created_at,
+        $sql = "SELECT r.id, r.rating, r.comment, r.created_at, r.status,
                        u_client.name  AS client_name,
                        u_client.email AS client_email,
                        u_partner.name AS partner_name,
@@ -36,10 +36,10 @@ class ReviewModel {
      */
     public function findByPartner($partnerId) {
         $sql = "SELECT r.*, u.name AS client_name, u.avatar_url AS client_avatar
-                FROM reviews r
-                JOIN users u ON u.id = r.client_id
-                WHERE r.partner_id = :partner_id
-                ORDER BY r.created_at DESC";
+                 FROM reviews r
+                 JOIN users u ON u.id = r.client_id
+                 WHERE r.partner_id = :partner_id AND r.status = 'approved'
+                 ORDER BY r.created_at DESC";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['partner_id' => $partnerId]);
@@ -52,6 +52,17 @@ class ReviewModel {
     public function delete($id) {
         $stmt = $this->db->prepare("DELETE FROM reviews WHERE id = :id");
         return $stmt->execute(['id' => $id]);
+    }
+
+    /**
+     * Met à jour le statut de modération d'un avis (Admin)
+     */
+    public function updateStatus($id, $status) {
+        $stmt = $this->db->prepare("UPDATE reviews SET status = :status WHERE id = :id");
+        return $stmt->execute([
+            'status' => $status,
+            'id' => $id
+        ]);
     }
 
     /**

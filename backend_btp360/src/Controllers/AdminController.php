@@ -159,4 +159,24 @@ class AdminController extends Controller {
 
         return $this->json(['error' => 'Avis introuvable ou échec de la suppression'], 404);
     }
+
+    /**
+     * Met à jour le statut d'un avis (Admin)
+     */
+    public function updateReviewStatus($id) {
+        $this->requireAdmin();
+
+        $data = $this->getRequestData();
+        $status = $data['status'] ?? '';
+
+        if (!in_array($status, ['pending', 'approved', 'rejected'])) {
+            return $this->json(['error' => 'Statut de modération invalide'], 400);
+        }
+
+        if ($this->reviewModel->updateStatus((int)$id, $status)) {
+            return $this->json(['message' => 'Statut de l\'avis mis à jour avec succès', 'status' => $status]);
+        }
+
+        return $this->json(['error' => 'Échec de la mise à jour ou avis introuvable'], 404);
+    }
 }
